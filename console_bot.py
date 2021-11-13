@@ -70,13 +70,13 @@ def input_error(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         try:
-            command = func(*args, **kwargs)
             if len(args) > 3:
-                return 'Too many arguments, or you are trying to input more than one command per one request, ' \
+                return 'Too many arguments, or you are trying to input more than one answer per one request, ' \
                        'please try again( '
+            answer = func(*args, **kwargs)
         except (KeyError, ValueError, IndexError):
-            return "I don't know this command, please try input again("
-        return command
+            return "I don't know this answer, please try input again("
+        return answer
 
     return wrapper
 
