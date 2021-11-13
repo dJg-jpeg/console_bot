@@ -2,7 +2,12 @@ from collections import UserDict
 from functools import wraps
 
 
-# USERS_PATH = r'./users.txt'
+class UnknownPhoneError(Exception):
+    """No such phone in this contact"""
+
+
+class UnknownCommandError(Exception):
+    """Unknown command for the bot"""
 
 
 class ExistContactError(Exception):
@@ -23,7 +28,6 @@ class TooMuchPhonesError(Exception):
 
 class ContactBook(UserDict):
     """All contacts data"""
-
     def add_record(self, record):
         record = Record(record[0], record[1:])
         self.data[record.name.name] = record
@@ -31,9 +35,10 @@ class ContactBook(UserDict):
     def change_record(self, record):
         for this_name, this_record in self.data.items():
             if this_name == record[0]:
-                self.data[this_name].change_phone(
-                    list(map(lambda phone_number: phone_number.phone, this_record.phone)).index(record[1]),
-                    record[2],)
+                contact_phones = list(map(lambda phone_number: phone_number.phone, this_record.phone))
+                if record[1] not in contact_phones:
+                    raise UnknownPhoneError
+                self.data[this_name].change_phone(contact_phones.index(record[1]), record[2])
                 return self.data[this_name]
         raise UnknownContactError
 
@@ -45,7 +50,8 @@ class ContactBook(UserDict):
 
 
 class Record:
-    """Records(contacts) in users contact book"""
+    """Records(contacts) in users contact book.
+    Only one name , but it can be more than one phone"""
 
     def __init__(self, name, phone=None):
         if phone is None:
@@ -70,19 +76,21 @@ class Field:
 
 
 class Name(Field):
+    """Name of the contact"""
     def __init__(self, name):
         self.name = name
 
 
 class Phone(Field):
+    """Phone of the contact"""
     def __init__(self, phone):
         self.phone = phone
 
 
 def greetings():
-    return f"""Hi! 
-    My list of commands is : {', '.join(list(COMMANDS.keys()))}
-    How can I help you?"""
+    return f"Hi!\n" \
+           f"My list of commands is : {', '.join(list(COMMANDS.keys()))}\n" \
+           f"How can I help you?"
 
 
 def add_contact(contact, contacts_book):
@@ -134,15 +142,16 @@ def goodbye():
     return 'Good bye!'
 
 
-COMMANDS = {'hello': greetings,
-            'add_contact': add_contact,
-            'change': change_number,
-            'phone': print_phone,
-            'show_all': show_all_contacts,
-            'goodbye': goodbye,
-            'close': goodbye,
-            'exit': goodbye,
-            }
+COMMANDS = {
+        'hello': greetings,
+        'add_contact': add_contact,
+        'change': change_number,
+        'phone': print_phone,
+        'show_all': show_all_contacts,
+        'goodbye': goodbye,
+        'close': goodbye,
+        'exit': goodbye,
+}
 
 
 def input_error(func):
@@ -150,11 +159,13 @@ def input_error(func):
     def wrapper(*args, **kwargs):
         try:
             answer = func(*args, **kwargs)
-        except (KeyError, ValueError, IndexError):
+        except UnknownCommandError:
             return "I don't know this command, please try input again("
         except TooMuchPhonesError:
             return "You are trying to change more than one number , " \
                    "please input only one to one phone numbers, try again("
+        except UnknownPhoneError:
+            return "No such number for this contact, try again("
         except UnknownContactError:
             return "No such contact in contact book, please try again("
         except EmptyContactBookError:
@@ -169,11 +180,14 @@ def input_error(func):
 
 @input_error
 def get_handler(command, contacts):
+    if command[0] not in COMMANDS.keys():
+        raise UnknownCommandError
+    necessary_handler = COMMANDS[command[0]]
     if command[0] == 'show_all':
-        return COMMANDS[command[0]](contacts)
-    if len(command) == 1:
-        return COMMANDS[command[0]]()
-    return COMMANDS[command[0]](command[1:], contacts)
+        return necessary_handler(contacts)
+    elif len(command) == 1:
+        return necessary_handler()
+    return necessary_handler(command[1:], contacts)
 
 
 def main():
