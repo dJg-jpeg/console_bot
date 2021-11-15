@@ -94,14 +94,14 @@ def input_error(func):
 
 @input_error
 def get_handler(command):
-    necessary_handler = COMMANDS[command[0]]
+    handler_by_command = COMMANDS[command[0]]
     if len(command) == 1:
-        return necessary_handler()
-    return necessary_handler(command[1:])
+        return handler_by_command()
+    return handler_by_command(command[1:])
 
 
 def main():
-    bot_answer = ''
+    bot_answer = None
     while bot_answer != 'Good bye!':
         console_args = input().split(' ')
         console_args[0] = console_args[0].lower()
