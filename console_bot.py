@@ -5,37 +5,33 @@ from collections import UserDict
 USERS_PATH = r'./users.txt'
 
 
-class UnknownPhoneError(Exception):
-    """No such phone in this contact"""
-
-
-class UnknownCommandError(Exception):
-    """Unknown command for the bot"""
-
-
-class ExistContactError(Exception):
-    """Contact already exists"""
-
-
-class EmptyContactBookError(Exception):
-    """No contacts in contact book"""
-
-
-class UnknownContactError(Exception):
-    """Phoning contact which is not in contact book"""
-
-
-class TooMuchPhonesError(Exception):
-    """Changing more than one number in one command"""
-
-
-class ContactBook(UserDict):
+class AddressBook(UserDict):
     """All contacts data"""
+
+    def add_record(self, record):
+        record = Record(name=record[0], phone=record[1:])
+        self.data[record.name.name] = record
 
 
 class Record:
     """Records(contacts) in users contact book.
     Only one name , but it can be more than one phone"""
+
+    def __init__(self, name, phone=None):
+        if phone is None:
+            self.phone = []
+        else:
+            self.phone = list(map(lambda phone_number: Phone(phone_number), phone))
+        self.name = Name(name)
+
+    def add_phone(self, phone):
+        self.phone.append(Phone(phone))
+
+    def del_phone(self, phone):
+        self.phone.remove(phone)
+
+    def change_phone(self, old_phone_index, new_phone):
+        self.phone[old_phone_index] = Phone(new_phone)
 
 
 class Field:
@@ -46,9 +42,15 @@ class Field:
 class Name(Field):
     """Name of the contact"""
 
+    def __init__(self, name):
+        self.name = name
+
 
 class Phone(Field):
     """Phone of the contact"""
+
+    def __init__(self, phone):
+        self.phone = phone
 
 
 def greetings():
@@ -127,7 +129,7 @@ def input_error(func):
         if len(args) > 3:
             return 'Too many arguments, ' \
                    'or you are trying ' \
-                   'hto input more than one command ' \
+                   'to input more than one command ' \
                    'per one request, ' \
                    'please try again( '
         try:
