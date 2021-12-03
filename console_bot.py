@@ -34,7 +34,10 @@ class Record:
         else:
             self.phone = [Phone(p) for p in phone]
         self.name = Name(name)
-        self.birthday = Birthday(birthday)
+        if birthday is not None:
+            self.birthday = Birthday(birthday)
+        else:
+            self.birthday = birthday
 
     def find_phone(self, phone):
         for p in self.phone:
@@ -52,8 +55,9 @@ class Record:
 
     def change_phone(self, old_phone, new_phone):
         phone_to_change = self.find_phone(old_phone)
+        phone_to_change_index = self.phone.index(phone_to_change)
         if phone_to_change is not None:
-            self.phone[self.phone.index(phone_to_change)] = Phone(new_phone)
+            self.phone[phone_to_change_index] = Phone(new_phone)
 
     def days_to_birthday(self):
         if self.birthday is not None:
@@ -119,3 +123,15 @@ class Birthday(Field):
             self.__value = datetime.strptime(new_birthday, "%d.%m.%Y")
         except (ValueError, TypeError):
             raise BirthdayError("Data must match pattern '%d.%m.%Y'")
+
+
+if __name__ == "__main__":
+    book = AddressBook()
+    book.add_record(['Yegor', "+380674889977"])
+    book.add_record(['Liza', "+380674889277"])
+    book.add_record(['Andrew', "+380674889277"])
+
+    record_iterator = book.iterator(2)
+
+    for contact in record_iterator:
+        print(contact)
