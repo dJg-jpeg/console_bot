@@ -1,5 +1,10 @@
 from collections import UserDict
 from datetime import datetime
+from typing import Optional, List
+import csv
+
+FIELD_NAMES = ('name', 'numbers', 'birthday')
+CONTACTS_PATH = 'contacts.csv'
 
 
 class PhoneError(Exception):
@@ -14,21 +19,49 @@ class AddressBook(UserDict):
     """All contacts data"""
 
     def add_record(self, record: list) -> None:
-        new_record = Record(record[0], record[1:])
+        if len(record) == 1:
+            new_record = Record(record[0])
+        elif record[-1].startswith('+'):
+            new_record = Record(record[0], record[1:])
+        else:
+            new_record = Record(record[0], record[1:-1], record[-1])
         self.data[new_record.name.value] = new_record
 
-    def iterator(self, n):
+    def iterator(self, n: int) -> list:
         values = list(self.data.values())
         while values:
             yield values[:n]
             values = values[n:]
+
+    def load(self):
+        with open(CONTACTS_PATH, 'r') as tr:
+            contacts_reader = csv.DictReader(tr)
+            for row in contacts_reader:
+                contact_phones = row['numbers'].split(',') if row['numbers'] is not 'None' else None
+                contact_birthday = row['birthday'] if row['birthday'] is not 'None' else None
+                self.data[row['name']] = Record(row['name'], contact_phones, contact_birthday)
+
+    def save(self):
+        with open(CONTACTS_PATH, 'w') as tw:
+            contacts_writer = csv.DictWriter(tw, FIELD_NAMES)
+            contacts_writer.writeheader()
+            for name, record in self.data.items():
+                contacts_phones = ','.join([p.value for p in record.phone]) if len(record.phone) > 0 else 'None'
+                if record.birthday is not None:
+                    contact_birthday = record.birthday.value.strftime("%d.%m.%Y")
+                else:
+                    contact_birthday = 'None'
+                contacts_writer.writerow({'name': name,
+                                          'numbers': contacts_phones,
+                                          'birthday': contact_birthday,
+                                          })
 
 
 class Record:
     """Records(contacts) in users contact book.
     Only one name , but it can be more than one phone"""
 
-    def __init__(self, name, phone=None, birthday=None):
+    def __init__(self, name: str, phone: List[str] = None, birthday: str = None) -> None:
         if phone is None:
             self.phone = []
         else:
@@ -104,10 +137,11 @@ class Phone(Field):
 
     @value.setter
     def value(self, new_phone):
-        if new_phone.isdigit():
-            self.__value = new_phone
-        else:
+        if new_phone[0] != '+':
+            raise PhoneError("Phone number must starts from +")
+        if not new_phone[1:].isalnum():
             raise PhoneError("Phone must contain only digits")
+        self.__value = new_phone
 
 
 class Birthday(Field):
