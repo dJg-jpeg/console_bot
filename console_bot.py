@@ -37,13 +37,13 @@ class AddressBook(UserDict):
         with open(CONTACTS_PATH, 'r') as tr:
             contacts_reader = csv.DictReader(tr)
             for row in contacts_reader:
-                contact_phones = row['numbers'].split(',') if row['numbers'] is not 'None' else None
-                contact_birthday = row['birthday'] if row['birthday'] is not 'None' else None
+                contact_phones = row['numbers'].split(',') if row['numbers'] != 'None' else None
+                contact_birthday = row['birthday'] if row['birthday'] != 'None' else None
                 self.data[row['name']] = Record(row['name'], contact_phones, contact_birthday)
 
     def save(self):
         with open(CONTACTS_PATH, 'w') as tw:
-            contacts_writer = csv.DictWriter(tw, FIELD_NAMES)
+            contacts_writer = csv.DictWriter(tw, FIELD_NAMES, )
             contacts_writer.writeheader()
             for name, record in self.data.items():
                 contacts_phones = ','.join([p.value for p in record.phone]) if len(record.phone) > 0 else 'None'
@@ -62,13 +62,17 @@ class Record:
     Only one name , but it can be more than one phone"""
 
     def __init__(self, name: str, phone: List[str] = None, birthday: str = None) -> None:
-        if phone is None:
-            self.phone = []
-        else:
-            self.phone = [Phone(p) for p in phone]
-        self.name = Name(name)
+        self.phone = []
+        if phone is not None:
+            for p in phone:
+                new_phone = Phone()
+                new_phone.value = p
+                self.phone.append(new_phone)
+        self.name = Name()
+        self.name.value = name
         if birthday is not None:
-            self.birthday = Birthday(birthday)
+            self.birthday = Birthday()
+            self.birthday.value = birthday
         else:
             self.birthday = birthday
 
@@ -79,7 +83,9 @@ class Record:
         return None
 
     def add_phone(self, new_phone):
-        self.phone.append(Phone(new_phone))
+        new_phone_obj = Phone()
+        new_phone_obj.value = new_phone
+        self.phone.append(new_phone_obj)
 
     def del_phone(self, phone):
         phone_to_delete = self.find_phone(phone)
@@ -90,7 +96,9 @@ class Record:
         phone_to_change = self.find_phone(old_phone)
         phone_to_change_index = self.phone.index(phone_to_change)
         if phone_to_change is not None:
-            self.phone[phone_to_change_index] = Phone(new_phone)
+            new_phone_obj = Phone()
+            new_phone_obj.value = new_phone
+            self.phone[phone_to_change_index] = new_phone_obj
 
     def days_to_birthday(self):
         if self.birthday is not None:
@@ -108,12 +116,19 @@ class Record:
                 ).date()
             return (this_year_birthday - current_date).days
 
+    def __repr__(self):
+        phones = ';'.join([p.value for p in self.phone]) if len(self.phone) > 0 else 'None'
+        birthday = self.birthday.value.strftime('%d.%m.%Y') if self.birthday is not None else 'None'
+        return f"|Record of {self.name.value}, " \
+               f"phones : {phones}, " \
+               f"birthday : {birthday}|"
+
 
 class Field:
     """Fields of records in contact book : name , phone/phones , etc."""
 
-    def __init__(self, value):
-        self.__value = value
+    def __init__(self):
+        self.__value = None
 
     @property
     def value(self):
@@ -131,6 +146,9 @@ class Name(Field):
 class Phone(Field):
     """Phone / phones of the contact"""
 
+    def __init__(self):
+        super().__init__()
+
     @property
     def value(self):
         return self.__value
@@ -147,6 +165,9 @@ class Phone(Field):
 class Birthday(Field):
     """Birthday of the contact"""
 
+    def __init__(self):
+        super().__init__()
+
     @property
     def value(self):
         return self.__value
@@ -160,12 +181,18 @@ class Birthday(Field):
 
 
 if __name__ == "__main__":
+    # book = AddressBook()
+    # book.add_record(['Yegor'])
+    # book.add_record(['Liza', "+380674889277"])
+    # book.add_record(['Volodymyr', '+12345678', '+98765432', '+54637281', '+8'])
+    # book.add_record(['Andrew', "+380674889277", '01.12.2005'])
+    # book.add_record(['Olga', '+3806788275', '+8789277', '+098726752123', '01.01.2001'])
     book = AddressBook()
-    book.add_record(['Yegor', "+380674889977"])
-    book.add_record(['Liza', "+380674889277"])
-    book.add_record(['Andrew', "+380674889277"])
-
+    book.load()
+    print(book['Olga'].days_to_birthday())
     record_iterator = book.iterator(2)
 
     for contact in record_iterator:
         print(contact)
+
+    book.save()
