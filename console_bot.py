@@ -14,7 +14,12 @@ class AddressBook(UserDict):
     """All contacts data"""
 
     def add_record(self, record: list) -> None:
-        new_record = Record(record[0], record[1:])
+        if len(record) == 1:
+            new_record = Record(record[0])
+        elif record[-1].startswith('+'):
+            new_record = Record(record[0], record[1:])
+        else:
+            new_record = Record(record[0], record[1:-1], record[-1])
         self.data[new_record.name.value] = new_record
 
     def iterator(self, n):
@@ -29,13 +34,17 @@ class Record:
     Only one name , but it can be more than one phone"""
 
     def __init__(self, name, phone=None, birthday=None):
-        if phone is None:
-            self.phone = []
-        else:
-            self.phone = [Phone(p) for p in phone]
-        self.name = Name(name)
+        self.phone = []
+        if phone is not None:
+            for p in phone:
+                new_phone = Phone()
+                new_phone.value = p
+                self.phone.append(new_phone)
+        self.name = Name()
+        self.name.value = name
         if birthday is not None:
-            self.birthday = Birthday(birthday)
+            self.birthday = Birthday()
+            self.birthday.value = birthday
         else:
             self.birthday = birthday
 
@@ -46,7 +55,9 @@ class Record:
         return None
 
     def add_phone(self, new_phone):
-        self.phone.append(Phone(new_phone))
+        new_phone_obj = Phone()
+        new_phone_obj.value = new_phone
+        self.phone.append(new_phone_obj)
 
     def del_phone(self, phone):
         phone_to_delete = self.find_phone(phone)
@@ -57,7 +68,9 @@ class Record:
         phone_to_change = self.find_phone(old_phone)
         phone_to_change_index = self.phone.index(phone_to_change)
         if phone_to_change is not None:
-            self.phone[phone_to_change_index] = Phone(new_phone)
+            new_phone_obj = Phone()
+            new_phone_obj.value = new_phone
+            self.phone[phone_to_change_index] = new_phone_obj
 
     def days_to_birthday(self):
         if self.birthday is not None:
@@ -79,8 +92,8 @@ class Record:
 class Field:
     """Fields of records in contact book : name , phone/phones , etc."""
 
-    def __init__(self, value):
-        self.__value = value
+    def __init__(self):
+        self.__value = None
 
     @property
     def value(self):
@@ -98,20 +111,27 @@ class Name(Field):
 class Phone(Field):
     """Phone / phones of the contact"""
 
+    def __init__(self):
+        super().__init__()
+
     @property
     def value(self):
         return self.__value
 
     @value.setter
     def value(self, new_phone):
-        if new_phone.isdigit():
-            self.__value = new_phone
-        else:
+        if new_phone[0] != '+':
+            raise PhoneError("Phone number must starts from +")
+        if not new_phone[1:].isalnum():
             raise PhoneError("Phone must contain only digits")
+        self.__value = new_phone
 
 
 class Birthday(Field):
     """Birthday of the contact"""
+
+    def __init__(self):
+        super().__init__()
 
     @property
     def value(self):
@@ -127,10 +147,12 @@ class Birthday(Field):
 
 if __name__ == "__main__":
     book = AddressBook()
-    book.add_record(['Yegor', "+380674889977"])
+    book.add_record(['Yegor'])
     book.add_record(['Liza', "+380674889277"])
-    book.add_record(['Andrew', "+380674889277"])
-
+    book.add_record(['Volodymyr', '+12345678', '+98765432', '+54637281', '+8'])
+    book.add_record(['Andrew', "+380674889277", '01.12.2005'])
+    book.add_record(['Olga', '+3806788275', '+8789277', '+098726752123', '01.01.2001'])
+    print(book['Olga'].days_to_birthday())
     record_iterator = book.iterator(2)
 
     for contact in record_iterator:
