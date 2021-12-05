@@ -15,6 +15,56 @@ class BirthdayError(Exception):
     """Unmatched birthday pattern"""
 
 
+class Field:
+    """Fields of records in contact book : name , phone/phones , etc."""
+
+    def __init__(self):
+        self.__value = None
+
+    @property
+    def value(self):
+        return self.__value
+
+    @value.setter
+    def value(self, value):
+        self.__value = value
+
+
+class Name(Field):
+    """Name of the contact"""
+
+
+class Birthday(Field):
+    """Birthday of the contact"""
+
+    @property
+    def value(self) -> datetime:
+        return self.__value
+
+    @value.setter
+    def value(self, new_birthday: str) -> None:
+        try:
+            self.__value = datetime.strptime(new_birthday, "%d.%m.%Y")
+        except (ValueError, TypeError):
+            raise BirthdayError("Data must match pattern '%d.%m.%Y'")
+
+
+class Phone(Field):
+    """Phone / phones of the contact"""
+
+    @property
+    def value(self) -> str:
+        return self.__value
+
+    @value.setter
+    def value(self, new_phone: str) -> None:
+        if new_phone[0] != '+':
+            raise PhoneError("Phone number must starts from +")
+        if not new_phone[1:].isalnum():
+            raise PhoneError("Phone must contain only digits")
+        self.__value = new_phone
+
+
 class AddressBook(UserDict):
     """All contacts data"""
 
@@ -33,7 +83,7 @@ class AddressBook(UserDict):
             yield values[:n]
             values = values[n:]
 
-    def load(self):
+    def load(self) -> None:
         with open(CONTACTS_PATH, 'r') as tr:
             contacts_reader = csv.DictReader(tr)
             for row in contacts_reader:
@@ -41,7 +91,7 @@ class AddressBook(UserDict):
                 contact_birthday = row['birthday'] if row['birthday'] != 'None' else None
                 self.data[row['name']] = Record(row['name'], contact_phones, contact_birthday)
 
-    def save(self):
+    def save(self) -> None:
         with open(CONTACTS_PATH, 'w') as tw:
             contacts_writer = csv.DictWriter(tw, FIELD_NAMES, )
             contacts_writer.writeheader()
@@ -55,6 +105,16 @@ class AddressBook(UserDict):
                                           'numbers': contacts_phones,
                                           'birthday': contact_birthday,
                                           })
+
+    def find_record(self, sought_string: str) -> tuple:
+        findings_by_name = []
+        findings_by_phone = []
+        for name, record in self.data.items():
+            if sought_string in name:
+                findings_by_name.append(record)
+            elif sought_string in '|,|'.join([p.value for p in record.phone]):
+                findings_by_phone.append(record)
+        return findings_by_name, findings_by_phone
 
 
 class Record:
@@ -76,23 +136,23 @@ class Record:
         else:
             self.birthday = birthday
 
-    def find_phone(self, phone):
+    def find_phone(self, phone) -> Optional[Phone]:
         for p in self.phone:
             if p.value == phone:
                 return p
         return None
 
-    def add_phone(self, new_phone):
+    def add_phone(self, new_phone: str) -> None:
         new_phone_obj = Phone()
         new_phone_obj.value = new_phone
         self.phone.append(new_phone_obj)
 
-    def del_phone(self, phone):
+    def del_phone(self, phone: str) -> None:
         phone_to_delete = self.find_phone(phone)
         if phone_to_delete is not None:
-            self.phone.remove(phone)
+            self.phone.remove(phone_to_delete)
 
-    def change_phone(self, old_phone, new_phone):
+    def change_phone(self, old_phone: str, new_phone: str) -> None:
         phone_to_change = self.find_phone(old_phone)
         phone_to_change_index = self.phone.index(phone_to_change)
         if phone_to_change is not None:
@@ -100,7 +160,7 @@ class Record:
             new_phone_obj.value = new_phone
             self.phone[phone_to_change_index] = new_phone_obj
 
-    def days_to_birthday(self):
+    def days_to_birthday(self) -> int:
         if self.birthday is not None:
             current_date = datetime.now().date()
             this_year_birthday = datetime(
@@ -116,7 +176,7 @@ class Record:
                 ).date()
             return (this_year_birthday - current_date).days
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         phones = ';'.join([p.value for p in self.phone]) if len(self.phone) > 0 else 'None'
         birthday = self.birthday.value.strftime('%d.%m.%Y') if self.birthday is not None else 'None'
         return f"|Record of {self.name.value}, " \
@@ -124,75 +184,18 @@ class Record:
                f"birthday : {birthday}|"
 
 
-class Field:
-    """Fields of records in contact book : name , phone/phones , etc."""
-
-    def __init__(self):
-        self.__value = None
-
-    @property
-    def value(self):
-        return self.__value
-
-    @value.setter
-    def value(self, value):
-        self.__value = value
-
-
-class Name(Field):
-    """Name of the contact"""
-
-
-class Phone(Field):
-    """Phone / phones of the contact"""
-
-    def __init__(self):
-        super().__init__()
-
-    @property
-    def value(self):
-        return self.__value
-
-    @value.setter
-    def value(self, new_phone):
-        if new_phone[0] != '+':
-            raise PhoneError("Phone number must starts from +")
-        if not new_phone[1:].isalnum():
-            raise PhoneError("Phone must contain only digits")
-        self.__value = new_phone
-
-
-class Birthday(Field):
-    """Birthday of the contact"""
-
-    def __init__(self):
-        super().__init__()
-
-    @property
-    def value(self):
-        return self.__value
-
-    @value.setter
-    def value(self, new_birthday):
-        try:
-            self.__value = datetime.strptime(new_birthday, "%d.%m.%Y")
-        except (ValueError, TypeError):
-            raise BirthdayError("Data must match pattern '%d.%m.%Y'")
-
-
 if __name__ == "__main__":
-    # book = AddressBook()
-    # book.add_record(['Yegor'])
-    # book.add_record(['Liza', "+380674889277"])
-    # book.add_record(['Volodymyr', '+12345678', '+98765432', '+54637281', '+8'])
-    # book.add_record(['Andrew', "+380674889277", '01.12.2005'])
-    # book.add_record(['Olga', '+3806788275', '+8789277', '+098726752123', '01.01.2001'])
     book = AddressBook()
-    book.load()
-    print(book['Olga'].days_to_birthday())
+    book.add_record(['Spirit'])
+    book.add_record(['Beer', "+380674889277"])
+    book.add_record(['Vodka', '+12345678', '+98765432', '+54637281', '+8'])
+    book.add_record(['Whir 380 key', "+380674889277", '01.12.2005'])
+    book.add_record(['Rum', '+3806788275', '+8789277', '+098726752123', '01.01.2001'])
+    print(book['Rum'].days_to_birthday())
     record_iterator = book.iterator(2)
-
     for contact in record_iterator:
-        print(contact)
-
+        print(contact, '\n')
+    print('\nFindings\n\n')
+    print(book.find_record('ir'), '\n')
+    print(book.find_record('380'))
     book.save()
